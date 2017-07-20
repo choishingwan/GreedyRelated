@@ -261,22 +261,23 @@ int main(int argc, char * argv[]) {
         }
     }
     //Update phenotype informations
-    bool first = true;
+
+    for(auto &&sample : sample_list)
+    {
+    		if(sample->get_occur() == 0{
+    			fprintf(stderr, "%s doesn't have any related pair\n", sample->get_name().c_str());
+    		}
+    }
+    size_t index = 0;
     while(true){
-        if(first){
-            for(size_t i = 0; i < sample_list.size(); ++i){
-                if(sample_list[i]->get_occur()==0){
-                    fprintf(stderr, "%s doesn't have any related pair\n", sample_list[i]->get_name().c_str());
-                }
-            }
-            first = false;
-        }
-        std::sort(sample_list.begin(), sample_list.end(), Sample::compare_sample);
-        if(sample_list[0]->get_occur()<=0) break;
+    		// best if we can avoid re-sorting the algorithm again
+        std::sort(sample_list.begin()+index, sample_list.end(), Sample::compare_sample);
+        if(sample_list[index]->get_occur()<=0) break;
         else{
-            std::cout << sample_list[0]->get_name() << std::endl;
-            sample_list[0]->remove();
+            std::cout << sample_list[index]->get_name() << std::endl;
+            sample_list[index]->remove();
         }
+        index++;
     }
     return 0;
 }
