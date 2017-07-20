@@ -55,7 +55,7 @@ public:
             if(a->phenotype == b->phenotype){
                 return a->rand_number > b->rand_number;
             }
-            else return a->phenotype > b->phenotype;
+            else return a->phenotype < b->phenotype;
         }
         else return a->occur > b->occur;
     };
@@ -92,7 +92,9 @@ void usage(){
     fprintf(stderr, "       ID    Pheno\n\n");
     fprintf(stderr, "       Again, we do assume there is a header line\n");
     fprintf(stderr, "       Note: Phenotype information only used to decide which\n");
-    fprintf(stderr, "             samples to leave behind when there is a tie.\n");
+    fprintf(stderr, "             samples to leave behind when there is a tie,\n");
+    fprintf(stderr, "             where sample with higher phenotype value will be\n");
+    fprintf(stderr, "             retained.\n");
     fprintf(stderr, "             When no phenotype information is provided, \n");
     fprintf(stderr, "             we will randomly select one sample to remove\n");
 }
