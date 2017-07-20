@@ -6,4 +6,4 @@ OBJ=misc.o main.o
 		$(CXX) $(CXXFLAGS) -c $< -o $@
 
 GreedyRelated: $(OBJ)
-		$(CXX) -static $^ -o $@
+		$(CXX) -static-libstdc++ -static-libgcc $^ -o $@
