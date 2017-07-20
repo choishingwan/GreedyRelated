@@ -3,7 +3,7 @@ CXXFLAGS=-Wall -O2 -std=c++11 -DNDEBUG
 OBJ=misc.o main.o
 
 %.o: %.cpp
-        $(CXX) $(CXXFLAGS) -c $< -o $@
+		$(CXX) $(CXXFLAGS) -c $< -o $@
 
 GreedyRelated: $(OBJ)
-        $(CXX) -static $^ -o $@
+		$(CXX) -static $^ -o $@
