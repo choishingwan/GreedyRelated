@@ -21,6 +21,10 @@ awk -v NUM=1 'NR==1{print $2" "$4" "$10} NR!=1{print $2" "NUM" "$10; print $4" "
 
 Please note that **greedy_related** assume the input has a header line
 
+## Future development
+- we hope to support plink format
+- might be more tolerate with the header line?
+
 # Citation
 The DOI of this software is [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.831680.svg)](https://doi.org/10.5281/zenodo.831680)
 
