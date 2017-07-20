@@ -27,16 +27,18 @@ class Sample{
 public:
     //First occurance = itself, therefore occurance = 0
     Sample(std::string name, double pheno, double rand):m_name(name), phenotype(pheno), rand_number(rand){occur=0;};
-    void add(Sample *related){
+    int add(Sample *related){
         relatives.push_back(nullptr);
         relatives.back()=  related;
         occur++;
+        return occur;
     };
-    void remove(){ //Think there might be problem with this code
+    int remove(){ //Think there might be problem with this code
         for(size_t i = 0; i < relatives.size(); ++i){
             relatives[i]->occur--;
         }
         occur=-1;
+        return occur;
     }
     
     
@@ -66,7 +68,6 @@ private:
     double phenotype;
     double rand_number; //This is a random number to solve the tie
     std::vector<Sample*> relatives;
-    
 };
 
 void usage(){
@@ -101,11 +102,12 @@ int main(int argc, char * argv[]) {
         usage();
         exit(0);
     }
-    static const char *optString = "r:p:t:s:h?";
+    static const char *optString = "r:p:t:s:n:h?";
     static const struct option longOpts[]={
         {"relate",required_argument,NULL,'r'},
         {"pheno",required_argument,NULL,'p'},
         {"threshold",required_argument,NULL,'t'},
+        {"thread",required_argument,NULL,'n'},
         {"seed",required_argument,NULL,'t'},
         {"help",no_argument,NULL,'h'},
         {NULL, 0, 0, 0}
@@ -114,6 +116,7 @@ int main(int argc, char * argv[]) {
     std::string pheno_name = "";
     bool provide_seed = false;
     int seed=0;
+    int thread=1;
     double threshold = 0.0;
     int longIndex=0;
     int opt = 0;
@@ -140,6 +143,19 @@ int main(int argc, char * argv[]) {
                     fprintf(stderr, "Cannot parse the seed into number, will not use the provided seed\n");
                 }
                 break;
+            case 'n':
+                try{
+                    int temp = misc::convert<int>(optarg);
+                    thread =temp;
+                }
+                catch(const std::runtime_error &error){
+                    fprintf(stderr, "Cannot parse the thread into number, will only use 1 thread\n");
+                }
+                if(thread <=0)
+                {
+                		fprintf(stderr, "Number of thread must be larger than 0. Will use only 1 thread\n");
+                }
+                break;
             case 'h':
             case '?':
                 usage();
@@ -150,7 +166,7 @@ int main(int argc, char * argv[]) {
         }
         opt=getopt_long(argc, argv, optString, longOpts, &longIndex);
     }
-    
+
     std::map<std::string, double> phenotype;
     if(!pheno_name.empty()){
         std::ifstream pheno_file;
@@ -163,29 +179,31 @@ int main(int argc, char * argv[]) {
         getline(pheno_file, line);
         while(getline(pheno_file, line)){
             misc::trim(line);
-            if(!line.empty()){
-                std::vector<std::string> token=misc::split(line);
-                if(token.size() < 2){
-                    fprintf(stderr, "ERROR: Phenotype file format incorrect! Require at least 2 columns\n");
-                    exit(-1);
-                }
-                try{
-                    double factor = 0.0;
-                    if(token[1].compare("NA")==0 || token[1].compare("na")==0) factor = -9;
-                    else  factor = misc::convert<double>(token[1]);
-                    if(phenotype.find(token[0])!=phenotype.end()) fprintf(stderr, "WARNING: Duplicated sample id: %s\n", token[0].c_str());
-                    phenotype[token[0]]=factor;
-                }
-                catch(const std::runtime_error &error){
-                    fprintf(stderr, "ERROR: Undefined factor number\n");
-                }
+            if(line.empty()) continue;
+            std::vector<std::string> token=misc::split(line);
+            if(token.size() < 2){
+            		fprintf(stderr, "ERROR: Phenotype file format incorrect! Require at least 2 columns\n");
+            		exit(-1);
+            }
+            try{
+            		double factor = 0.0;
+            		if(token[1].compare("NA")==0 || token[1].compare("na")==0) factor = -9;
+            		else  factor = misc::convert<double>(token[1]);
+            		if(phenotype.find(token[0])!=phenotype.end()) fprintf(stderr, "WARNING: Duplicated sample id: %s\n", token[0].c_str());
+            		phenotype[token[0]]=factor;
+            }
+            catch(const std::runtime_error &error){
+            		fprintf(stderr, "ERROR: Undefined factor number\n");
             }
         }
         pheno_file.close();
     }
-    
-    if(provide_seed) srand (seed);
-    else srand (time(NULL));
+
+	int cur_seed = time(NULL);
+    if(provide_seed) cur_seed = seed;
+    fprintf(stderr, "Seed used: %d\n", cur_seed);
+    	srand (cur_seed);
+
     
     //Read relationship file
     std::ifstream relate;
@@ -194,7 +212,7 @@ int main(int argc, char * argv[]) {
         fprintf(stderr, "ERROR: Cannot open relationship file %s\n", relate_name.c_str());
         exit(-1);
     }
-    std::deque<Sample*> sample_list;
+    std::vector<Sample*> sample_list;
     std::map<std::string, size_t> sample_index;
     std::map<size_t, size_t> direction; //First size_t = pair, second size_t = index of the neighbour
     std::string line;
