@@ -40,7 +40,10 @@ public:
     		// check if any relatives have more than us. If not, then proceed, otherwise, return
     		for(auto &&relative : relatives)
     		{
-    			if(!relative->removed() && relative->occur > occur) return 0;
+    			if(!relative->removed() &&
+    			        (relative->occur > occur
+    			                || (relative->occur==occur && relative->phenotype < phenotype)
+    			                || (relative->occur==occur && relative->rand_number > rand_number)) )return 0;
     		}
     		std::cout << m_name << "\t" << occur << std::endl;
     		occur=-1;
