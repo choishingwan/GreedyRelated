@@ -13,7 +13,7 @@
 #include <cstdlib>
 #include <stdlib.h>
 #include <time.h>
-#include <map>
+#include <unordered_map>
 #include <fstream>
 #include <sstream>
 #include <getopt.h>
@@ -30,17 +30,36 @@ public:
     int add(Sample *related){
         relatives.push_back(nullptr);
         relatives.back()=  related;
+        m_removed = false;
         occur++;
         return occur;
     };
-    int remove(){ //Think there might be problem with this code
-        for(size_t i = 0; i < relatives.size(); ++i){
-            relatives[i]->occur--;
+    int remove(){
+    		// we are going to start cleaning up these relatives.
+    		// good thing is that the size of this vector will small
+    		// check if any relatives have more than us. If not, then proceed, otherwise, return
+    		for(auto &&relative : relatives)
+    		{
+    			if(!relative->removed() && relative->occur > occur) return 0;
+    		}
+    		std::cout << m_name << "\t" << occur << std::endl;
+    		occur=-1;
+    		m_removed = true;
+        for(auto &&relative : relatives)
+        {
+        		relative->occur--;
+        		if(relative->occur <=0) relative->m_removed = true;
         }
-        occur=-1;
+        std::sort(relatives.begin(), relatives.end(), Sample::compare_sample);
+        for(auto &&relative : relatives)
+        {
+        		if(!relative->removed() && relative->occur > 0)
+        		{
+        			relative->remove();
+        		}
+        }
         return occur;
     }
-    
     
     std::string debug() const{
         std::string ocur;          // string which will contain the result
@@ -59,15 +78,17 @@ public:
         }
         else return a->occur > b->occur;
     };
-    
+
     int get_occur() const{return occur;};
     std::string get_name() const{return m_name;};
+    bool removed() const { return m_removed;};
 private:
     int occur;
     std::string m_name;
     double phenotype;
     double rand_number; //This is a random number to solve the tie
     std::vector<Sample*> relatives;
+    bool m_removed =true; // so any samples with invalid pairs will be ignoreds
 };
 
 void usage(){
@@ -169,7 +190,7 @@ int main(int argc, char * argv[]) {
         opt=getopt_long(argc, argv, optString, longOpts, &longIndex);
     }
 
-    std::map<std::string, double> phenotype;
+    std::unordered_map<std::string, double> phenotype;
     if(!pheno_name.empty()){
         std::ifstream pheno_file;
         pheno_file.open(pheno_name.c_str());
@@ -215,69 +236,59 @@ int main(int argc, char * argv[]) {
         exit(-1);
     }
     std::vector<Sample*> sample_list;
-    std::map<std::string, size_t> sample_index;
-    std::map<size_t, size_t> direction; //First size_t = pair, second size_t = index of the neighbour
+    std::vector<Sample> samples;
+    std::unordered_map<std::string, size_t> sample_index;
+    std::unordered_map<size_t, size_t> direction; //First size_t = pair, second size_t = index of the neighbour
     std::string line;
     //Assume there is a header
     getline(relate, line);
     while(getline(relate, line)){
         misc::trim(line);
-        if(!line.empty()){
-            std::vector<std::string> token=misc::split(line);
-            if(token.size() !=3){
-                fprintf(stderr, "ERROR: Relationship file format incorrect! Require 3 columns\n");
-                exit(-1);
-            }
-            std::string id = token[0];
-            size_t pair=0;
-            double factor = 0.0;
-            try{
-                pair = misc::convert<size_t>(token[1]);
-                factor=misc::convert<double>(token[2]);
-            }
-            catch(const std::runtime_error &error){
-                fprintf(stderr, "ERROR: Cannot convert some of the information in the relationship file\n");
-                fprintf(stderr, "Input: %s\n", line.c_str());
-                exit(-1);
-            }
-            //Now we have id pair and factor
-            if(factor> threshold){
-                double pheno = -9;
-                if(phenotype.find(id)!=phenotype.end()) pheno = phenotype[id];
-                if(sample_index.find(id) == sample_index.end()){
-                    sample_list.push_back(new Sample(id, pheno, rand()));
-                    sample_index[id] = sample_list.size()-1;
-                }
-                if(direction.find(pair)!=direction.end()){
-                    sample_list[direction[pair]]->add(sample_list[sample_index[id]]);
-                    sample_list[sample_index[id]]->add(sample_list[direction[pair]]);
-                }
-                else{
-                    direction[pair]=sample_index[id];
-                }
-                
-            }
-            //Else nothing to do
+        if(line.empty()) continue;
+        std::vector<std::string> token=misc::split(line);
+        if(token.size() !=3){
+        		fprintf(stderr, "ERROR: Relationship file format incorrect! Require 3 columns\n");
+        		exit(-1);
+        }
+        std::string id = token[0];
+        size_t pair=0;
+        double factor = 0.0;
+        try{
+        		pair = misc::convert<size_t>(token[1]);
+        		factor = misc::convert<double>(token[2]);
+        }
+        catch(const std::runtime_error &error){
+        		fprintf(stderr, "ERROR: Cannot convert some of the information in the relationship file\n");
+        		fprintf(stderr, "Input: %s\n", line.c_str());
+        		exit(-1);
+        }
+        //Now we have id pair and factor
+        if(factor <= threshold) continue;
+        double pheno = -9;
+        if(phenotype.find(id)!=phenotype.end()) pheno = phenotype[id];
+        if(sample_index.find(id) == sample_index.end()){
+        		sample_list.push_back(new Sample(id, pheno, rand()));
+        		sample_index[id] = sample_list.size()-1;
+        }
+        // worst case scenario in UKBB -> 109 relatives
+        // still better than resorting the whole vector
+        if(direction.find(pair)!=direction.end()){
+        		size_t dir_id = direction[pair];
+        		size_t sam_id = sample_index[id];
+        		sample_list[dir_id]->add(sample_list[sam_id]);
+        		sample_list[sam_id]->add(sample_list[dir_id]);
+        }
+        else{
+        		direction[pair]=sample_index[id];
         }
     }
     //Update phenotype informations
-
-    for(auto &&sample : sample_list)
+    sample_index.clear();
+    std::sort(sample_list.begin(), sample_list.end(), Sample::compare_sample);
+    for(size_t i_sample=0; i_sample < sample_list.size(); ++i_sample)
     {
-    		if(sample->get_occur() == 0{
-    			fprintf(stderr, "%s doesn't have any related pair\n", sample->get_name().c_str());
-    		}
-    }
-    size_t index = 0;
-    while(true){
-    		// best if we can avoid re-sorting the algorithm again
-        std::sort(sample_list.begin()+index, sample_list.end(), Sample::compare_sample);
-        if(sample_list[index]->get_occur()<=0) break;
-        else{
-            std::cout << sample_list[index]->get_name() << std::endl;
-            sample_list[index]->remove();
-        }
-        index++;
+    		if(sample_list[i_sample]->removed()) continue;
+    		sample_list[i_sample]->remove();
     }
     return 0;
 }
