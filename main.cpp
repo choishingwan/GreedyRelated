@@ -97,6 +97,7 @@ private:
 void usage(){
     fprintf(stderr, " GreedyRelate\n");
     fprintf(stderr, " Sam Choi\n");
+    fprintf(stderr, " v1.1.1 ( 2018-01-23 )\n");
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This programme will try to minize the number of samples that need to\n");
     fprintf(stderr, " be removed due to relatedness\n");
