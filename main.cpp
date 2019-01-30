@@ -79,6 +79,11 @@ public:
                 return 0;
             }
         }
+        if (m_name == "3003339" || m_name == "5128261" || m_name == "1304775"
+            || m_name == "5000708" || m_name == "2975133")
+        {
+            std::cerr << "Outside for loop" << std::endl;
+        }
         std::cout << m_name << "\t" << occur << std::endl;
         occur = -1;
         m_removed = true;
