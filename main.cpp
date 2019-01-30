@@ -99,7 +99,14 @@ public:
         std::sort(relatives.begin(), relatives.end(), Sample::compare_sample);
         for (auto&& relative : relatives) {
             if (!relative->removed() && relative->occur > 0) {
-                std::cerr << "Start remove relative" << std::endl;
+                if (relative->m_name == "3003339"
+                    || relative->m_name == "5128261"
+                    || relative->m_name == "1304775"
+                    || relative->m_name == "5000708"
+                    || relative->m_name == "2975133")
+                {
+                    std::cerr << "Start remove relative" << std::endl;
+                }
                 relative->remove();
             }
         }
@@ -264,7 +271,8 @@ int main(int argc, char* argv[])
             return 0;
             break;
         default:
-            throw "Undefined operator, please use --help for more information!";
+            throw "Undefined operator, please use --help for more "
+                  "information!";
         }
         opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
     }
