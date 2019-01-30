@@ -13,6 +13,7 @@
 #include <fstream>
 #include <getopt.h>
 #include <iostream>
+#include <random>
 #include <sstream>
 #include <stdexcept>
 #include <stdlib.h>
@@ -20,7 +21,6 @@
 #include <unistd.h>
 #include <unordered_map>
 #include <vector>
-#include <random>
 
 
 class Sample
@@ -31,7 +31,7 @@ public:
         : m_name(name), phenotype(pheno), rand_number(rand)
     {
         occur = 0;
-    };
+    }
     // add a relative to the current sample
     int add(Sample* related)
     {
@@ -42,22 +42,20 @@ public:
         m_removed = false;
         occur++;
         return occur;
-    };
+    }
     int remove()
     {
         // we are going to start cleaning up these relatives.
         // good thing is that the size of this vector will small
         // check if any relatives have more than us. If not, then proceed,
         // otherwise, return
-        if(m_name=="3003339"||
-                m_name=="5128261" ||
-                m_name == "1304775" ||
-                m_name == "5000708" ||
-                m_name == "2975133"){
-            std::cerr << "Removing individual: " << m_name << "\t" << occur << std::endl;
-        }
-        for (auto&& relative : relatives)
+        if (m_name == "3003339" || m_name == "5128261" || m_name == "1304775"
+            || m_name == "5000708" || m_name == "2975133")
         {
+            std::cerr << "Removing individual: " << m_name << "\t" << occur
+                      << std::endl;
+        }
+        for (auto&& relative : relatives) {
             if (!relative->removed()
                 && (relative->occur > occur
                     || (relative->occur == occur
@@ -66,16 +64,17 @@ public:
                         && relative->rand_number > rand_number)
                     || (relative->occur == occur
                         && relative->rand_number == rand_number
-                        && relative->m_name > m_name))){
+                        && relative->m_name > m_name)))
+            {
 
-                if(m_name=="3003339"||
-                        m_name=="5128261" ||
-                        m_name == "1304775" ||
-                        m_name == "5000708" ||
-                        m_name == "2975133"){
-                    std::cerr << "Relative Save: " << relative->m_name << "\t" <<
-                              relative->occur << "\t" << relative->rand_number << "\t" <<
-                              rand_number << std::endl;
+                if (m_name == "3003339" || m_name == "5128261"
+                    || m_name == "1304775" || m_name == "5000708"
+                    || m_name == "2975133")
+                {
+                    std::cerr << "Relative Save: " << relative->m_name << "\t"
+                              << relative->occur << "\t"
+                              << relative->rand_number << "\t" << rand_number
+                              << std::endl;
                 }
                 return 0;
             }
@@ -83,25 +82,27 @@ public:
         std::cout << m_name << "\t" << occur << std::endl;
         occur = -1;
         m_removed = true;
-        for (auto&& relative : relatives)
-        {
+        for (auto&& relative : relatives) {
             relative->occur--;
             if (relative->occur <= 0) relative->m_removed = true;
-            if(relative->m_name=="3003339"||
-                    relative->m_name=="5128261" ||
-                    relative->m_name == "1304775" ||
-                    relative->m_name == "5000708" ||
-                    relative->m_name == "2975133"){
-                std::cerr << "Relative reduce: " << m_name << "\t" << occur << "\t" << relative->m_name << "\t" <<
-                          relative->occur << "\t" << relative->rand_number << "\t" <<
-                          rand_number << std::endl;
+            if (relative->m_name == "3003339" || relative->m_name == "5128261"
+                || relative->m_name == "1304775"
+                || relative->m_name == "5000708"
+                || relative->m_name == "2975133")
+            {
+                std::cerr << "Relative reduce: " << m_name << "\t" << occur
+                          << "\t" << relative->m_name << "\t" << relative->occur
+                          << "\t" << relative->rand_number << "\t"
+                          << rand_number << std::endl;
             }
         }
         std::sort(relatives.begin(), relatives.end(), Sample::compare_sample);
-        for (auto&& relative : relatives)
-        {
-            if (!relative->removed() && relative->occur > 0)
-            { relative->remove(); } }
+        for (auto&& relative : relatives) {
+            if (!relative->removed() && relative->occur > 0) {
+                std::cerr << "Start remove relative" << std::endl;
+                relative->remove();
+            }
+        }
         return occur;
     }
 
@@ -117,35 +118,36 @@ public:
 
     static bool compare_sample(Sample const* a, Sample const* b)
     {
-        if (a->occur == b->occur)
-        {
-            if (a->phenotype == b->phenotype)
-            {
-                if(a->rand_number == b->rand_number){
+        if (a->occur == b->occur) {
+            if (a->phenotype == b->phenotype) {
+                if (a->rand_number == b->rand_number) {
                     return a->m_name > b->m_name;
                 }
-                else return a->rand_number > b->rand_number;
-            } else
+                else
+                    return a->rand_number > b->rand_number;
+            }
+            else
                 return a->phenotype < b->phenotype;
         }
         else
             return a->occur > b->occur;
-    };
+    }
 
-    int get_occur() const { return occur; };
-    std::string get_name() const { return m_name; };
-    bool removed() const {
+    int get_occur() const { return occur; }
+    std::string get_name() const { return m_name; }
+    bool removed() const
+    {
         // add additional condition where the current sample is removed
-        if(occur==0) return true;
+        if (occur == 0) return true;
         return m_removed;
-    };
+    }
 
 private:
-    int occur;
+    std::vector<Sample*> relatives;
     std::string m_name;
     double phenotype;
     double rand_number; // This is a random number to solve the tie
-    std::vector<Sample*> relatives;
+    int occur;
     bool m_removed = true; // so any samples with invalid pairs will be ignoreds
 };
 
@@ -193,20 +195,19 @@ void usage()
 
 int main(int argc, char* argv[])
 {
-    if (argc <= 1)
-    {
+    if (argc <= 1) {
         usage();
         exit(0);
     }
     static const char* optString = "r:p:t:s:n:h?";
     static const struct option longOpts[] = {
-        {"relate", required_argument, NULL, 'r'},
-        {"pheno", required_argument, NULL, 'p'},
-        {"threshold", required_argument, NULL, 't'},
-        {"thread", required_argument, NULL, 'n'},
-        {"seed", required_argument, NULL, 't'},
-        {"help", no_argument, NULL, 'h'},
-        {NULL, 0, 0, 0}};
+        {"relate", required_argument, nullptr, 'r'},
+        {"pheno", required_argument, nullptr, 'p'},
+        {"threshold", required_argument, nullptr, 't'},
+        {"thread", required_argument, nullptr, 'n'},
+        {"seed", required_argument, nullptr, 't'},
+        {"help", no_argument, nullptr, 'h'},
+        {nullptr, 0, 0, 0}};
     std::string relate_name = "";
     std::string pheno_name = "";
     bool provide_seed = false;
@@ -216,8 +217,7 @@ int main(int argc, char* argv[])
     int longIndex = 0;
     int opt = 0;
     opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
-    while (opt != -1)
-    {
+    while (opt != -1) {
         switch (opt)
         {
         case 'r': relate_name = optarg; break;
@@ -236,7 +236,7 @@ int main(int argc, char* argv[])
                 provide_seed = true;
                 seed = temp;
             }
-            catch (const std::runtime_error& error)
+            catch (const std::runtime_error&)
             {
                 fprintf(stderr, "Cannot parse the seed into number, will not "
                                 "use the provided seed\n");
@@ -248,13 +248,12 @@ int main(int argc, char* argv[])
                 int temp = misc::convert<int>(optarg);
                 thread = temp;
             }
-            catch (const std::runtime_error& error)
+            catch (const std::runtime_error&)
             {
                 fprintf(stderr, "Cannot parse the thread into number, will "
                                 "only use 1 thread\n");
             }
-            if (thread <= 0)
-            {
+            if (thread <= 0) {
                 fprintf(stderr, "Number of thread must be larger than 0. Will "
                                 "use only 1 thread\n");
             }
@@ -262,7 +261,7 @@ int main(int argc, char* argv[])
         case 'h':
         case '?':
             usage();
-            return false;
+            return 0;
             break;
         default:
             throw "Undefined operator, please use --help for more information!";
@@ -272,25 +271,21 @@ int main(int argc, char* argv[])
 
     std::string line;
     std::unordered_map<std::string, double> phenotype;
-    if (!pheno_name.empty())
-    {
+    if (!pheno_name.empty()) {
         std::ifstream pheno_file;
         pheno_file.open(pheno_name.c_str());
-        if (!pheno_file.is_open())
-        {
+        if (!pheno_file.is_open()) {
             fprintf(stderr, "ERROR: Cannot open phenotype file %s\n",
                     pheno_name.c_str());
             exit(-1);
         }
         // Assumine phenotype has header?
         getline(pheno_file, line);
-        while (getline(pheno_file, line))
-        {
+        while (getline(pheno_file, line)) {
             misc::trim(line);
             if (line.empty()) continue;
             std::vector<std::string> token = misc::split(line);
-            if (token.size() < 2)
-            {
+            if (token.size() < 2) {
                 fprintf(stderr, "ERROR: Phenotype file format incorrect! "
                                 "Require at least 2 columns\n");
                 exit(-1);
@@ -315,7 +310,8 @@ int main(int argc, char* argv[])
         pheno_file.close();
     }
 
-    std::random_device::result_type cur_seed =  std::random_device()();;
+    std::random_device::result_type cur_seed = std::random_device()();
+    ;
     if (provide_seed) cur_seed = seed;
     fprintf(stderr, "Seed used: %d\n", cur_seed);
     std::mt19937 rand_gen(cur_seed);
@@ -323,8 +319,7 @@ int main(int argc, char* argv[])
     // Read relationship file
     std::ifstream relate;
     relate.open(relate_name.c_str());
-    if (!relate.is_open())
-    {
+    if (!relate.is_open()) {
         fprintf(stderr, "ERROR: Cannot open relationship file %s\n",
                 relate_name.c_str());
         exit(-1);
@@ -337,17 +332,16 @@ int main(int argc, char* argv[])
 
     // Assume there is a header
     // Or we can add in
-    fprintf(stderr, "Assuming there is a header file for the relatedness file\n");
+    fprintf(stderr,
+            "Assuming there is a header file for the relatedness file\n");
     getline(relate, line);
     std::vector<std::string> token;
     size_t sample_idx = 0;
-    while (getline(relate, line))
-    {
+    while (getline(relate, line)) {
         misc::trim(line);
         if (line.empty()) continue;
         token = misc::split(line);
-        if (token.size() != 3)
-        {
+        if (token.size() != 3) {
             fprintf(stderr, "ERROR: Relationship file format incorrect! "
                             "Require 3 columns\n");
             exit(-1);
@@ -372,17 +366,16 @@ int main(int argc, char* argv[])
         if (factor <= threshold) continue;
         double pheno = -9;
         if (phenotype.find(id) != phenotype.end()) pheno = phenotype[id];
-        if (sample_index.find(id) == sample_index.end())
-        {
+        if (sample_index.find(id) == sample_index.end()) {
             // this is a new sample
-            sample_list.push_back(new Sample(id, pheno, distribution(rand_gen)));
+            sample_list.push_back(
+                new Sample(id, pheno, distribution(rand_gen)));
             sample_index[id] = sample_idx;
             ++sample_idx;
         }
         // worst case scenario in UKBB -> 109 relatives
         // still better than resorting the whole vector
-        if (direction.find(pair) != direction.end())
-        {
+        if (direction.find(pair) != direction.end()) {
             // this is not a new pair
             size_t dir_id = direction[pair];
             size_t sam_id = sample_index[id];
@@ -398,8 +391,8 @@ int main(int argc, char* argv[])
     // Update phenotype informations
     sample_index.clear();
     std::sort(sample_list.begin(), sample_list.end(), Sample::compare_sample);
-    for(auto&& sample : sample_list){
-        if(sample->removed()) continue;
+    for (auto&& sample : sample_list) {
+        if (sample->removed()) continue;
         sample->remove();
     }
     return 0;
