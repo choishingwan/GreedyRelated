@@ -49,6 +49,13 @@ public:
         // good thing is that the size of this vector will small
         // check if any relatives have more than us. If not, then proceed,
         // otherwise, return
+        if(m_name=="3003339"||
+                m_name=="5128261" ||
+                m_name == "1304775" ||
+                m_name == "5000708" ||
+                m_name == "2975133"){
+            std::cerr << "Removing individual: " << m_name << "\t" << occur << std::endl;
+        }
         for (auto&& relative : relatives)
         {
             if (!relative->removed()
@@ -59,8 +66,19 @@ public:
                         && relative->rand_number > rand_number)
                     || (relative->occur == occur
                         && relative->rand_number == rand_number
-                        && relative->m_name > m_name)))
+                        && relative->m_name > m_name))){
+
+                if(m_name=="3003339"||
+                        m_name=="5128261" ||
+                        m_name == "1304775" ||
+                        m_name == "5000708" ||
+                        m_name == "2975133"){
+                    std::cerr << "Relative Save: " << relative->m_name << "\t" <<
+                              relative->occur << "\t" << relative->rand_number << "\t" <<
+                              rand_number << std::endl;
+                }
                 return 0;
+            }
         }
         std::cout << m_name << "\t" << occur << std::endl;
         occur = -1;
@@ -69,6 +87,15 @@ public:
         {
             relative->occur--;
             if (relative->occur <= 0) relative->m_removed = true;
+            if(relative->m_name=="3003339"||
+                    relative->m_name=="5128261" ||
+                    relative->m_name == "1304775" ||
+                    relative->m_name == "5000708" ||
+                    relative->m_name == "2975133"){
+                std::cerr << "Relative reduce: " << m_name << "\t" << occur << "\t" << relative->m_name << "\t" <<
+                          relative->occur << "\t" << relative->rand_number << "\t" <<
+                          rand_number << std::endl;
+            }
         }
         std::sort(relatives.begin(), relatives.end(), Sample::compare_sample);
         for (auto&& relative : relatives)
