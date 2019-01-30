@@ -49,12 +49,6 @@ public:
         // good thing is that the size of this vector will small
         // check if any relatives have more than us. If not, then proceed,
         // otherwise, return
-        if (m_name == "3003339" || m_name == "5128261" || m_name == "1304775"
-            || m_name == "5000708" || m_name == "2975133")
-        {
-            std::cerr << "Removing individual: " << m_name << "\t" << occur
-                      << std::endl;
-        }
         for (auto&& relative : relatives) {
             if (!relative->removed()
                 && (relative->occur > occur
@@ -66,23 +60,8 @@ public:
                         && relative->rand_number == rand_number
                         && relative->m_name > m_name)))
             {
-
-                if (m_name == "3003339" || m_name == "5128261"
-                    || m_name == "1304775" || m_name == "5000708"
-                    || m_name == "2975133")
-                {
-                    std::cerr << "Relative Save: " << relative->m_name << "\t"
-                              << relative->occur << "\t"
-                              << relative->rand_number << "\t" << rand_number
-                              << std::endl;
-                }
                 return 0;
             }
-        }
-        if (m_name == "3003339" || m_name == "5128261" || m_name == "1304775"
-            || m_name == "5000708" || m_name == "2975133")
-        {
-            std::cerr << "Outside for loop" << std::endl;
         }
         std::cout << m_name << "\t" << occur << std::endl;
         occur = -1;
@@ -90,28 +69,10 @@ public:
         for (auto&& relative : relatives) {
             relative->occur--;
             if (relative->occur <= 0) relative->m_removed = true;
-            if (relative->m_name == "3003339" || relative->m_name == "5128261"
-                || relative->m_name == "1304775"
-                || relative->m_name == "5000708"
-                || relative->m_name == "2975133")
-            {
-                std::cerr << "Relative reduce: " << m_name << "\t" << occur
-                          << "\t" << relative->m_name << "\t" << relative->occur
-                          << "\t" << relative->rand_number << "\t"
-                          << rand_number << std::endl;
-            }
         }
         std::sort(relatives.begin(), relatives.end(), Sample::compare_sample);
         for (auto&& relative : relatives) {
             if (!relative->removed() && relative->occur > 0) {
-                if (relative->m_name == "3003339"
-                    || relative->m_name == "5128261"
-                    || relative->m_name == "1304775"
-                    || relative->m_name == "5000708"
-                    || relative->m_name == "2975133")
-                {
-                    std::cerr << "Start remove relative" << std::endl;
-                }
                 relative->remove();
             }
         }
@@ -219,7 +180,7 @@ int main(int argc, char* argv[])
         {"thread", required_argument, nullptr, 'n'},
         {"seed", required_argument, nullptr, 't'},
         {"help", no_argument, nullptr, 'h'},
-        {nullptr, 0, 0, 0}};
+        {nullptr, 0, nullptr, 0}};
     std::string relate_name = "";
     std::string pheno_name = "";
     bool provide_seed = false;
@@ -315,7 +276,7 @@ int main(int argc, char* argv[])
                             token[0].c_str());
                 phenotype[token[0]] = factor;
             }
-            catch (const std::runtime_error& error)
+            catch (const std::runtime_error&)
             {
                 fprintf(stderr, "ERROR: Undefined factor number\n");
             }
@@ -325,7 +286,8 @@ int main(int argc, char* argv[])
 
     std::random_device::result_type cur_seed = std::random_device()();
     ;
-    if (provide_seed) cur_seed = seed;
+    if (provide_seed)
+        cur_seed = static_cast<std::random_device::result_type>(seed);
     fprintf(stderr, "Seed used: %d\n", cur_seed);
     std::mt19937 rand_gen(cur_seed);
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
@@ -367,7 +329,7 @@ int main(int argc, char* argv[])
             pair = misc::convert<size_t>(token[1]);
             factor = misc::convert<double>(token[2]);
         }
-        catch (const std::runtime_error& error)
+        catch (const std::runtime_error&)
         {
             fprintf(stderr, "ERROR: Cannot convert some of the information in "
                             "the relationship file\n");
