@@ -169,7 +169,7 @@ void usage()
 {
     fprintf(stderr, " GreedyRelate\n");
     fprintf(stderr, " Sam Choi\n");
-    fprintf(stderr, " v1.1.3 ( 2018-02-04 )\n");
+    fprintf(stderr, " v1.1.4 ( 2018-02-05 )\n");
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This programme will try to minize the number of samples "
                     "that need to\n");
