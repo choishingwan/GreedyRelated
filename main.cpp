@@ -46,9 +46,9 @@ public:
     {
         // not sure why
         // TODO: See if we can skip the step of pushing nullptr
-        // m_relatives.push_back(nullptr);
-        // m_relatives.back() = related;
-        m_relatives.emplace_back(related);
+        m_relatives.push_back(nullptr);
+        m_relatives.back() = related;
+        // m_relatives.emplace_back(related);
         m_removed = false;
         m_occur++;
         return m_occur;
