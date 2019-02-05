@@ -203,6 +203,14 @@ void usage()
             "             we will randomly select one sample to remove\n");
 }
 
+
+template <typename T>
+void delete_pointed_to(T* const ptr)
+{
+    delete ptr;
+}
+
+
 int main(int argc, char* argv[])
 {
     if (argc <= 1) {
@@ -421,5 +429,7 @@ int main(int argc, char* argv[])
         if (sample->removed()) continue;
         sample->remove(*fp);
     }
+    std::for_each(sample_list.begin(), sample_list.end(),
+                  delete_pointed_to<Sample>);
     return 0;
 }
