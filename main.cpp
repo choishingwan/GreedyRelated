@@ -64,22 +64,32 @@ public:
         std::sort(m_relatives.begin(), m_relatives.end(),
                   Sample::compare_sample);
         for (auto&& relative : m_relatives) {
-            if (relative->removed() || relative->m_occur < m_occur
-                || relative->m_phenotype > m_phenotype
-                || relative->m_rand_number < m_rand_number
-                || relative->m_name < m_name)
-            {
-                // do nothing
+            if (!relative->removed()) {
+                if (relative->m_occur > m_occur) {
+                    relative->remove(os);
+                }
+                else if (relative->m_occur == m_occur)
+                {
+                    if (relative->m_phenotype < m_phenotype) {
+                        relative->remove(os);
+                    }
+                    else if (misc::logically_equal(relative->m_phenotype,
+                                                   m_phenotype))
+                    {
+                        if (relative->m_rand_number < m_rand_number) {
+                            relative->remove(os);
+                        }
+                        else if (misc::logically_equal(relative->m_rand_number,
+                                                       m_rand_number))
+                        {
+                            if (relative->m_name < m_name) {
+                                relative->remove(os);
+                            }
+                        }
+                    }
+                }
             }
-            else if (!relative->removed())
-            {
-                // rescued by relative
-                // try to remove the relative now
-                relative->remove(os);
-                // If we have nothing left, end.
-                // If we can still remove, then continue on
-                if (m_occur <= 0 || m_removed) return 0;
-            }
+            if (m_occur <= 0 || m_removed) return 0;
         }
         // if we reach here, it means this sample still need to be removed.
         os << m_name << "\t" << m_occur << std::endl;
