@@ -60,22 +60,20 @@ public:
         // check if we still need to remove ourselves
         // If we no longer need to remove ourselves, immediately stop
         // transversing the relative vector
-
         // Do sorting first to ensure we remove the most related pair first
         std::sort(m_relatives.begin(), m_relatives.end(),
                   Sample::compare_sample);
         for (auto&& relative : m_relatives) {
-            if (!relative->removed()
-                && (relative->m_occur > m_occur
-                    || (relative->m_occur == m_occur
-                        && relative->m_phenotype < m_phenotype)
-                    || (relative->m_occur == m_occur
-                        && relative->m_rand_number > m_rand_number)
-                    || (relative->m_occur == m_occur
-                        && misc::logically_equal(relative->m_rand_number,
-                                                 m_rand_number)
-                        && relative->m_name > m_name)))
+            if (relative->removed() || relative->m_occur < m_occur
+                || relative->m_phenotype > m_phenotype
+                || relative->m_rand_number < m_rand_number
+                || relative->m_name < m_name)
             {
+                // do nothing
+            }
+            else if (!relative->removed())
+            {
+                // rescued by relative
                 // try to remove the relative now
                 relative->remove(os);
                 // If we have nothing left, end.
