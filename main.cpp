@@ -46,9 +46,9 @@ public:
     {
         // not sure why
         // TODO: See if we can skip the step of pushing nullptr
-        m_relatives.push_back(nullptr);
-        m_relatives.back() = related;
-        // m_relatives.emplace_back(related);
+        // m_relatives.push_back(nullptr);
+        // m_relatives.back() = related;
+        m_relatives.push_back(related);
         m_removed = false;
         m_occur++;
         return m_occur;
@@ -63,7 +63,7 @@ public:
 
         // Do sorting first to ensure we remove the most related pair first
         std::sort(m_relatives.begin(), m_relatives.end(),
-                  Sample::compare_sample_ptr);
+                  Sample::compare_sample);
         for (auto&& relative : m_relatives) {
             if (!relative->removed()
                 && (relative->m_occur > m_occur
@@ -96,7 +96,7 @@ public:
         // not required. But should be safer this way as the relative vector
         // should be tiny (< 100 ) anyway.
         std::sort(m_relatives.begin(), m_relatives.end(),
-                  Sample::compare_sample_ptr);
+                  Sample::compare_sample);
         for (auto&& relative : m_relatives) {
             if (!relative->removed() && relative->m_occur > 0) {
                 relative->remove(os);
@@ -114,31 +114,8 @@ public:
         occur = convert.str();
         return m_name + " " + occur;
     }
-    static bool compare_sample(Sample const& a, Sample const& b)
-    {
-        // Ordering is based on
-        // 1. Who has more related pair? More is first
-        // 2. Who has a larger phenotype? Higher come later (reserve cases)
-        // 3. Who has a higher random number? Higher come first
-        // 4. Who has a larger ID? Do string comparison, larger come first
-        if (a.m_occur == b.m_occur) {
-            if (misc::logically_equal(a.m_phenotype, b.m_phenotype)) {
-                if (misc::logically_equal(a.m_rand_number, b.m_rand_number)) {
-                    if (a.m_name == b.m_name)
-                        return false;
-                    else
-                        return a.m_name > b.m_name;
-                }
-                else
-                    return a.m_rand_number > b.m_rand_number;
-            }
-            else
-                return a.m_phenotype < b.m_phenotype;
-        }
-        else
-            return a.m_occur > b.m_occur;
-    }
-    static bool compare_sample_ptr(Sample const* a, Sample const* b)
+
+    static bool compare_sample(Sample const* a, Sample const* b)
     {
         // Ordering is based on
         // 1. Who has more related pair? More is first
@@ -373,7 +350,7 @@ int main(int argc, char* argv[])
                 relate_name.c_str());
         exit(-1);
     }
-    std::vector<Sample> sample_list;
+    std::vector<Sample*> sample_list;
     std::unordered_map<std::string, size_t> sample_index;
     std::unordered_map<size_t, size_t> direction; // First size_t = pair, second
                                                   // size_t = index of the
@@ -417,7 +394,8 @@ int main(int argc, char* argv[])
         if (phenotype.find(id) != phenotype.end()) pheno = phenotype[id];
         if (sample_index.find(id) == sample_index.end()) {
             // this is a new sample
-            sample_list.push_back(Sample(id, pheno, distribution(rand_gen)));
+            sample_list.push_back(
+                new Sample(id, pheno, distribution(rand_gen)));
             sample_index[id] = sample_idx;
             ++sample_idx;
         }
@@ -427,8 +405,8 @@ int main(int argc, char* argv[])
             // this is not a new pair
             size_t dir_id = direction[pair];
             size_t sam_id = sample_index[id];
-            sample_list[dir_id].add(&sample_list[sam_id]);
-            sample_list[sam_id].add(&sample_list[dir_id]);
+            sample_list[dir_id]->add(sample_list[sam_id]);
+            sample_list[sam_id]->add(sample_list[dir_id]);
         }
         else
         {
@@ -440,8 +418,8 @@ int main(int argc, char* argv[])
     sample_index.clear();
     std::sort(sample_list.begin(), sample_list.end(), Sample::compare_sample);
     for (auto&& sample : sample_list) {
-        if (sample.removed()) continue;
-        sample.remove(*fp);
+        if (sample->removed()) continue;
+        sample->remove(*fp);
     }
     return 0;
 }
