@@ -34,7 +34,7 @@ namespace misc{
         return (1/std::sqrt(2*M_PI)) / sigma *
         (exp(-0.5 * x1 * x1) * exp( (-0.5 * x2 - x1) * x2 ) );
     }
-    
+
     double qnorm(double p, double mu, double sigma, bool lower_tail, bool log_p){
         double r, val;
 #ifdef IEEE_754
@@ -99,15 +99,15 @@ namespace misc{
                      * r + .13692988092273580531) * r +
                     .59983220655588793769) * r + 1.);
             }
-            
+
             if(q < 0.0)
                 val = -val;
             /* return (q >= 0.)? r : -r ;*/
         }
         return mu + sigma * val;
     }
-    
-    
+
+
     std::vector<std::string> split(const std::string seq, const std::string separators){
         std::size_t prev = 0, pos;
         std::vector<std::string> result;
@@ -123,27 +123,27 @@ namespace misc{
         s.erase(s.begin(), std::find_if(s.begin(), s.end(),
                                         std::not1(std::ptr_fun<int, int>(std::isspace))));
     }
-    
+
     void rtrim(std::string &s) {
         s.erase(std::find_if(s.rbegin(), s.rend(),
                              std::not1(std::ptr_fun<int, int>(std::isspace))).base(), s.end());
     }
-    
+
     void trim(std::string &s) {
         ltrim(s);
         rtrim(s);
     }
-    
+
     std::string ltrimmed(std::string s) {
         ltrim(s);
         return s;
     }
-    
+
     std::string rtrimmed(std::string s) {
         rtrim(s);
         return s;
     }
-    
+
     std::string trimmed(std::string s) {
         trim(s);
         return s;
