@@ -20,6 +20,7 @@
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Useful for debugging
@@ -181,6 +182,8 @@ void usage()
     fprintf(stderr, "       -r | --relate      Relationship file (Required)\n");
     fprintf(stderr, "       -p | --pheno       Phenotype file\n");
     fprintf(stderr, "       -t | --threshold   Relatedness Threshold\n");
+    fprintf(stderr, "       -k | --keep        Ignore any samples not presented\n");
+    fprintf(stderr, "                          in this file\n");
     fprintf(stderr,
             "       -o | --out         Output name. Stdout if not provided\n");
     fprintf(stderr,
@@ -223,7 +226,7 @@ int main(int argc, char* argv[])
         usage();
         exit(0);
     }
-    static const char* optString = "r:p:t:s:n:o:h?";
+    static const char* optString = "r:p:t:s:n:o:k:h?";
     static const struct option longOpts[] = {
         {"relate", required_argument, nullptr, 'r'},
         {"pheno", required_argument, nullptr, 'p'},
@@ -231,12 +234,13 @@ int main(int argc, char* argv[])
         {"thread", required_argument, nullptr, 'n'},
         {"seed", required_argument, nullptr, 't'},
         {"out", required_argument, nullptr, 'o'},
+        {"keep", required_argument, nullptr, 'k'},
         {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     std::string relate_name = "";
     std::string pheno_name = "";
     std::string out_name = "";
-
+    std::string keep_name = "";
     bool provide_seed = false;
     int seed = 0;
     int thread = 1;
@@ -270,6 +274,7 @@ int main(int argc, char* argv[])
             }
             break;
         case 'o': out_name = optarg; break;
+        case 'k': keep_name = optarg; break;
         case 'n':
             try
             {
@@ -310,6 +315,26 @@ int main(int argc, char* argv[])
     }
     std::string line;
     std::unordered_map<std::string, double> phenotype;
+    std::unordered_set<std::string> include_samples;
+    bool keep_samples = false;
+
+    if(!keep_name.empty()){
+        keep_samples = true;
+        std::ifstream sample_file;
+        sample_file.open(keep_name.c_str());
+        if(!sample_file.is_open()){
+            fprintf(stderr, "ERROR: Cannot open sample ID file from --keep:"
+                            " %s\n", keep_name.c_str());
+            exit(-1);
+        }
+        while(getline(sample_file, line)){
+            misc::trim(line);
+            if(line.empty()) continue;
+            std::vector<std::string> token = misc::split(line);
+            include_samples.insert(token[0]);
+        }
+        sample_file.close();
+    }
     if (!pheno_name.empty()) {
         std::ifstream pheno_file;
         pheno_file.open(pheno_name.c_str());
@@ -350,7 +375,6 @@ int main(int argc, char* argv[])
     }
 
     std::random_device::result_type cur_seed = std::random_device()();
-    ;
     if (provide_seed)
         cur_seed = static_cast<std::random_device::result_type>(seed);
     fprintf(stderr, "Seed used: %d\n", cur_seed);
@@ -377,6 +401,7 @@ int main(int argc, char* argv[])
     getline(relate, line);
     std::vector<std::string> token;
     size_t sample_idx = 0;
+    std::unordered_set<size_t> remove_pair;
     while (getline(relate, line)) {
         misc::trim(line);
         if (line.empty()) continue;
@@ -404,6 +429,10 @@ int main(int argc, char* argv[])
         // Now we have id pair and factor
         // Ignore any pairs with relatedness less than our threshold
         if (factor <= threshold) continue;
+        if(keep_samples && include_samples.find(id) == include_samples.end()){
+            remove_pair.insert(pair);
+            continue;
+        }
         double pheno = -9;
         if (phenotype.find(id) != phenotype.end()) pheno = phenotype[id];
         if (sample_index.find(id) == sample_index.end()) {
