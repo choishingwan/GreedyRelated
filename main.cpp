@@ -238,7 +238,7 @@ std::vector<Sample*> kin3col(const std::string &relate_name,
                              const std::unordered_set<std::string> &include_samples,
                              const std::unordered_map<std::string, double> &phenotype,
                              const bool &keep_samples, const double &threshold,
-                             const std::mt19937 &rand_gen){
+                             std::mt19937 &rand_gen){
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
     std::unordered_map<std::string, size_t> sample_index;
     std::unordered_map<size_t, size_t> direction; // First size_t = pair, second
@@ -324,7 +324,7 @@ std::vector<Sample*> plink_format_process(const std::string &relate_name,
                                           const std::unordered_set<std::string> &include_samples,
                                           const std::unordered_map<std::string, double> &phenotype,
                                           const bool &keep_samples, const double &threshold,
-                                          const std::mt19937 &rand_gen,
+                                          std::mt19937 &rand_gen,
                                           const std::string &id_1_col,
                                           const std::string &id_2_col,
                                           const std::string &f_col){
@@ -398,7 +398,7 @@ std::vector<Sample*> plink_format_process(const std::string &relate_name,
         if(id2_loc == sample_index.end()){
             sample_list.emplace_back(new Sample(id2, pheno2, distribution(rand_gen)));
             sample_index[id2] = sample_list.size()-1;
-            id1_loc = sample_index.find(id2);
+            id2_loc = sample_index.find(id2);
         }
         sample_list[id1_loc->second]->add(sample_list[id2_loc->second]);
         sample_list[id2_loc->second]->add(sample_list[id1_loc->second]);
@@ -413,7 +413,7 @@ int main(int argc, char* argv[])
         exit(0);
     }
     int use_plink_default = false;
-    static const char* optString = "r:p:t:s:n:o:k:i:I:f:h?";
+    static const char* optString = "r:p:t:s:n:o:k:i:I:f:Ph?";
     static const struct option longOpts[] = {
         {"relate", required_argument, nullptr, 'r'},
         {"pheno", required_argument, nullptr, 'p'},
@@ -424,7 +424,7 @@ int main(int argc, char* argv[])
     {"keep", required_argument, nullptr, 'k'},
     {"id1", required_argument, nullptr, 'i'},
     {"id2", required_argument, nullptr, 'I'},
-    {"help", no_argument, &use_plink_default, 1},
+    {"plink", no_argument, nullptr, 'P'},
     {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     std::string relate_name = "";
@@ -469,6 +469,7 @@ int main(int argc, char* argv[])
             break;
         case 'o': out_name = optarg; break;
         case 'k': keep_name = optarg; break;
+        case 'P': use_plink_default = true; break;
         case 'n':
             try
             {
@@ -511,6 +512,7 @@ int main(int argc, char* argv[])
         id_1_col = "IID1";
         id_2_col = "IID2";
         f_col="PI_HAT";
+        plink_format = true;
     }
     std::ostream* fp = &std::cout;
     std::ofstream fout;
