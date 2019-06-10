@@ -2,8 +2,8 @@
 //  main.cpp
 //  greedRelate
 //  Greedy approach of keeping samples
-//  Created by Shing Wan Choi on 18/08/2016.
-//  Copyright © 2016 Shing Wan Choi. All rights reserved.
+//  Created by Shing Wan Choi on 04/06/2018.
+//  Copyright © 2018 Shing Wan Choi. All rights reserved.
 //
 
 #include "misc.hpp"
@@ -91,7 +91,7 @@ public:
             }
         }
         // if we reach here, it means this sample still need to be removed.
-        os << m_name << "\t" << m_occur << std::endl;
+        os << m_name << "\t"<< m_name <<  "\t" << m_occur << std::endl;
         m_occur = -1;
         m_removed = true;
         // Update our relatives to inform them we are dead
@@ -170,20 +170,34 @@ void usage()
 {
     fprintf(stderr, " GreedyRelate\n");
     fprintf(stderr, " Sam Choi\n");
-    fprintf(stderr, " v1.1.4 ( 2018-02-05 )\n");
+    fprintf(stderr, " v1.2.0 ( 2019-06-04 )\n");
     fprintf(stderr, " ==============================\n");
     fprintf(stderr, " This programme will try to minize the number of samples "
-                    "that need to\n");
-    fprintf(stderr, " be removed due to relatedness\n");
+                    "that\n");
+    fprintf(stderr, "need to be removed due to relatedness\n");
     fprintf(stderr,
-            " Samples that should be removed are output to the STDOUT\n ");
+            " Samples that should be removed are output to the STDOUT or\n ");
+    fprintf(stderr, "the Output file specified by --out");
     fprintf(stderr, " \n");
     fprintf(stderr, " Usage: GreedyRelate [options] -r <relatedness>\n");
     fprintf(stderr, "       -r | --relate      Relationship file (Required)\n");
     fprintf(stderr, "       -p | --pheno       Phenotype file\n");
     fprintf(stderr, "       -t | --threshold   Relatedness Threshold\n");
     fprintf(stderr, "       -k | --keep        Ignore any samples not presented\n");
-    fprintf(stderr, "                          in this file\n");
+    fprintf(stderr, "                          in this file. We only use the first\n");
+    fprintf(stderr, "                          column as the ID.\n");
+    fprintf(stderr, "       -i | --id1         Column containing the first ID\n");
+    fprintf(stderr, "                          When provided, will assume PLINK\n");
+    fprintf(stderr, "                          like formats\n");
+    fprintf(stderr, "       -I | --id2         Column containing the second ID\n");
+    fprintf(stderr, "                          When provided, will assume PLINK\n");
+    fprintf(stderr, "                          like formats\n");
+    fprintf(stderr, "       -f | --fstat       Column containing the F stat\n");
+    fprintf(stderr, "                          When provided, will assume PLINK\n");
+    fprintf(stderr, "                          like formats\n");
+    fprintf(stderr, "       -P | --plink       Input is a plink format. \n");
+    fprintf(stderr, "                          Will set -i IID1 -I IID2 -f PI_HAT\n");
+    fprintf(stderr, "                          Will over-ride -i -I and -f\n");
     fprintf(stderr,
             "       -o | --out         Output name. Stdout if not provided\n");
     fprintf(stderr,
@@ -220,13 +234,186 @@ void delete_pointed_to(T* const ptr)
 }
 
 
+std::vector<Sample*> kin3col(const std::string &relate_name,
+                             const std::unordered_set<std::string> &include_samples,
+                             const std::unordered_map<std::string, double> &phenotype,
+                             const bool &keep_samples, const double &threshold,
+                             const std::mt19937 &rand_gen){
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::unordered_map<std::string, size_t> sample_index;
+    std::unordered_map<size_t, size_t> direction; // First size_t = pair, second
+                                                  // size_t = index of the
+                                                  // neighbour
+    std::vector<Sample*> sample_list;
+    std::ifstream relate;
+    relate.open(relate_name.c_str());
+    if (!relate.is_open()) {
+        fprintf(stderr, "ERROR: Cannot open relationship file %s\n",
+                relate_name.c_str());
+        exit(-1);
+    }
+
+    std::string line;
+    // Assume there is a header
+    // Or we can add in
+    fprintf(stderr,
+            "Assuming there is a header file for the relatedness file\n");
+    getline(relate, line);
+    std::vector<std::string> token;
+    size_t sample_idx = 0;
+    std::unordered_set<size_t> remove_pair;
+    while (getline(relate, line)) {
+        misc::trim(line);
+        if (line.empty()) continue;
+        token = misc::split(line);
+        if (token.size() != 3) {
+            fprintf(stderr, "ERROR: Relationship file format incorrect! "
+                            "Require 3 columns\n");
+            exit(-1);
+        }
+        std::string id = token[0];
+        size_t pair = 0;
+        double factor = 0.0;
+        try
+        {
+            pair = misc::convert<size_t>(token[1]);
+            factor = misc::convert<double>(token[2]);
+        }
+        catch (const std::runtime_error&)
+        {
+            fprintf(stderr, "ERROR: Cannot convert some of the information in "
+                            "the relationship file\n");
+            fprintf(stderr, "Input: %s\n", line.c_str());
+            exit(-1);
+        }
+        // Now we have id pair and factor
+        // Ignore any pairs with relatedness less than our threshold
+        if (factor <= threshold) continue;
+        if(keep_samples && include_samples.find(id) == include_samples.end()){
+            remove_pair.insert(pair);
+            continue;
+        }
+        double pheno = -9;
+        if (phenotype.find(id) != phenotype.end()) pheno = phenotype.at(id);
+        if (sample_index.find(id) == sample_index.end()) {
+            // this is a new sample
+            sample_list.push_back(
+                new Sample(id, pheno, distribution(rand_gen)));
+            sample_index[id] = sample_idx;
+            ++sample_idx;
+        }
+        // worst case scenario in UKBB -> 109 relatives
+        // still better than resorting the whole vector
+        if (direction.find(pair) != direction.end()) {
+            // this is not a new pair
+            size_t dir_id = direction[pair];
+            size_t sam_id = sample_index[id];
+            sample_list[dir_id]->add(sample_list[sam_id]);
+            sample_list[sam_id]->add(sample_list[dir_id]);
+        }
+        else
+        {
+            // a new pair is located
+            direction[pair] = sample_index[id];
+        }
+    }
+    return sample_list;
+}
+
+std::vector<Sample*> plink_format_process(const std::string &relate_name,
+                                          const std::unordered_set<std::string> &include_samples,
+                                          const std::unordered_map<std::string, double> &phenotype,
+                                          const bool &keep_samples, const double &threshold,
+                                          const std::mt19937 &rand_gen,
+                                          const std::string &id_1_col,
+                                          const std::string &id_2_col,
+                                          const std::string &f_col){
+    std::vector<Sample*> sample_list;
+    std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::unordered_map<std::string, size_t> sample_index;
+    std::ifstream relate;
+    relate.open(relate_name.c_str());
+    if (!relate.is_open()) {
+        fprintf(stderr, "ERROR: Cannot open relationship file %s\n",
+                relate_name.c_str());
+        exit(-1);
+    }
+    std::string line;
+    // there must be a header
+    std::getline(relate, line);
+    std::vector<std::string> token;
+    misc::trim(line);
+    if(line.empty()){
+        throw std::runtime_error("Erorr: First line of the related file cannot be empty!");
+    }
+    token=misc::split(line);
+    // now get the index
+    size_t id1_idx=0, id2_idx=0, f_idx=0;
+    for(size_t i =  0; i < token.size(); ++i){
+        if(token[i]==id_1_col) id1_idx=i;
+        else if(token[i] ==id_2_col) id2_idx=i;
+        else if(token[i]==f_col) f_idx=i;
+        if(id1_idx && id2_idx && f_idx) break; // found all
+    }
+    size_t max_idx = id1_idx;
+    if(id2_idx > max_idx) max_idx = id2_idx;
+    if(f_idx > max_idx) max_idx = f_idx;
+    while(std::getline(relate, line)){
+        misc::trim(line);
+        if(line.empty()) continue;
+        token = misc::split(line);
+        if(token.size() <= max_idx){
+            fprintf(stderr, "ERROR: Relationship file format incorrect! "
+                            "Require at least %lu columns\n", max_idx);
+            exit(-1);
+        }
+        std::string id1 = token[id1_idx];
+        std::string id2 = token[id2_idx];
+        double fstat = 0;
+        try {
+            fstat = misc::convert<double>(token[f_idx]);
+        } catch(const std::runtime_error&)
+        {
+            fprintf(stderr, "ERROR: Cannot convert some of the information in "
+                            "the relationship file\n");
+            fprintf(stderr, "Input: %s\n", line.c_str());
+            exit(-1);
+        }
+        if (fstat <= threshold) continue;
+        if(keep_samples && (include_samples.find(id1) == include_samples.end()||
+               include_samples.find(id2) == include_samples.end()) ){
+            continue;
+        }
+        double pheno1 = -9, pheno2=-9;
+        if (phenotype.find(id1) != phenotype.end()) pheno1 = phenotype.at(id1);
+        if(phenotype.find(id2)!= phenotype.end()) pheno2 = phenotype.at(id2);
+        // first, check if we need to build a new sample
+        auto id1_loc = sample_index.find(id1);
+        auto id2_loc = sample_index.find(id2);
+        if(id1_loc == sample_index.end()){
+            sample_list.emplace_back(new Sample(id1, pheno1, distribution(rand_gen)));
+            sample_index[id1] = sample_list.size()-1;
+            id1_loc = sample_index.find(id1);
+        }
+        if(id2_loc == sample_index.end()){
+            sample_list.emplace_back(new Sample(id2, pheno2, distribution(rand_gen)));
+            sample_index[id2] = sample_list.size()-1;
+            id1_loc = sample_index.find(id2);
+        }
+        sample_list[id1_loc->second]->add(sample_list[id2_loc->second]);
+        sample_list[id2_loc->second]->add(sample_list[id1_loc->second]);
+    }
+    return sample_list;
+}
+
 int main(int argc, char* argv[])
 {
     if (argc <= 1) {
         usage();
         exit(0);
     }
-    static const char* optString = "r:p:t:s:n:o:k:h?";
+    int use_plink_default = false;
+    static const char* optString = "r:p:t:s:n:o:k:i:I:f:h?";
     static const struct option longOpts[] = {
         {"relate", required_argument, nullptr, 'r'},
         {"pheno", required_argument, nullptr, 'p'},
@@ -234,14 +421,21 @@ int main(int argc, char* argv[])
         {"thread", required_argument, nullptr, 'n'},
         {"seed", required_argument, nullptr, 't'},
         {"out", required_argument, nullptr, 'o'},
-        {"keep", required_argument, nullptr, 'k'},
-        {"help", no_argument, nullptr, 'h'},
+    {"keep", required_argument, nullptr, 'k'},
+    {"id1", required_argument, nullptr, 'i'},
+    {"id2", required_argument, nullptr, 'I'},
+    {"help", no_argument, &use_plink_default, 1},
+    {"help", no_argument, nullptr, 'h'},
         {nullptr, 0, nullptr, 0}};
     std::string relate_name = "";
     std::string pheno_name = "";
     std::string out_name = "";
     std::string keep_name = "";
+    std::string id_1_col = "";
+    std::string id_2_col = "";
+    std::string f_col = "";
     bool provide_seed = false;
+    bool plink_format =false;
     int seed = 0;
     int thread = 1;
     double threshold = 0.0;
@@ -291,16 +485,32 @@ int main(int argc, char* argv[])
                                 "use only 1 thread\n");
             }
             break;
+        case 'i':
+            id_1_col = optarg;
+            plink_format = true;
+            break;
+        case 'I':
+            id_2_col = optarg;
+            plink_format = true;
+            break;
+        case 'f':
+            f_col = optarg;
+            plink_format = true;
+            break;
         case 'h':
         case '?':
             usage();
             return 0;
-            break;
         default:
             throw "Undefined operator, please use --help for more "
                   "information!";
         }
         opt = getopt_long(argc, argv, optString, longOpts, &longIndex);
+    }
+    if(use_plink_default){
+        id_1_col = "IID1";
+        id_2_col = "IID2";
+        f_col="PI_HAT";
     }
     std::ostream* fp = &std::cout;
     std::ofstream fout;
@@ -327,10 +537,12 @@ int main(int argc, char* argv[])
                             " %s\n", keep_name.c_str());
             exit(-1);
         }
+        std::vector<std::string> token;
         while(getline(sample_file, line)){
             misc::trim(line);
             if(line.empty()) continue;
-            std::vector<std::string> token = misc::split(line);
+            token = misc::split(line);
+            // we only use the first column of the file, not using both FID and IID
             include_samples.insert(token[0]);
         }
         sample_file.close();
@@ -343,12 +555,11 @@ int main(int argc, char* argv[])
                     pheno_name.c_str());
             exit(-1);
         }
-        // Assumine phenotype has header?
-        getline(pheno_file, line);
+        std::vector<std::string> token;
         while (getline(pheno_file, line)) {
             misc::trim(line);
             if (line.empty()) continue;
-            std::vector<std::string> token = misc::split(line);
+            token = misc::split(line);
             if (token.size() < 2) {
                 fprintf(stderr, "ERROR: Phenotype file format incorrect! "
                                 "Require at least 2 columns\n");
@@ -368,7 +579,8 @@ int main(int argc, char* argv[])
             }
             catch (const std::runtime_error&)
             {
-                fprintf(stderr, "ERROR: Undefined factor number\n");
+                // if it is not a number, we assume it is NA
+                phenotype[token[0]] = -9;
             }
         }
         pheno_file.close();
@@ -379,86 +591,18 @@ int main(int argc, char* argv[])
         cur_seed = static_cast<std::random_device::result_type>(seed);
     fprintf(stderr, "Seed used: %d\n", cur_seed);
     std::mt19937 rand_gen(cur_seed);
-    std::uniform_real_distribution<double> distribution(0.0, 1.0);
     // Read relationship file
-    std::ifstream relate;
-    relate.open(relate_name.c_str());
-    if (!relate.is_open()) {
-        fprintf(stderr, "ERROR: Cannot open relationship file %s\n",
-                relate_name.c_str());
-        exit(-1);
-    }
-    std::vector<Sample*> sample_list;
-    std::unordered_map<std::string, size_t> sample_index;
-    std::unordered_map<size_t, size_t> direction; // First size_t = pair, second
-                                                  // size_t = index of the
-                                                  // neighbour
 
-    // Assume there is a header
-    // Or we can add in
-    fprintf(stderr,
-            "Assuming there is a header file for the relatedness file\n");
-    getline(relate, line);
-    std::vector<std::string> token;
-    size_t sample_idx = 0;
-    std::unordered_set<size_t> remove_pair;
-    while (getline(relate, line)) {
-        misc::trim(line);
-        if (line.empty()) continue;
-        token = misc::split(line);
-        if (token.size() != 3) {
-            fprintf(stderr, "ERROR: Relationship file format incorrect! "
-                            "Require 3 columns\n");
-            exit(-1);
-        }
-        std::string id = token[0];
-        size_t pair = 0;
-        double factor = 0.0;
-        try
-        {
-            pair = misc::convert<size_t>(token[1]);
-            factor = misc::convert<double>(token[2]);
-        }
-        catch (const std::runtime_error&)
-        {
-            fprintf(stderr, "ERROR: Cannot convert some of the information in "
-                            "the relationship file\n");
-            fprintf(stderr, "Input: %s\n", line.c_str());
-            exit(-1);
-        }
-        // Now we have id pair and factor
-        // Ignore any pairs with relatedness less than our threshold
-        if (factor <= threshold) continue;
-        if(keep_samples && include_samples.find(id) == include_samples.end()){
-            remove_pair.insert(pair);
-            continue;
-        }
-        double pheno = -9;
-        if (phenotype.find(id) != phenotype.end()) pheno = phenotype[id];
-        if (sample_index.find(id) == sample_index.end()) {
-            // this is a new sample
-            sample_list.push_back(
-                new Sample(id, pheno, distribution(rand_gen)));
-            sample_index[id] = sample_idx;
-            ++sample_idx;
-        }
-        // worst case scenario in UKBB -> 109 relatives
-        // still better than resorting the whole vector
-        if (direction.find(pair) != direction.end()) {
-            // this is not a new pair
-            size_t dir_id = direction[pair];
-            size_t sam_id = sample_index[id];
-            sample_list[dir_id]->add(sample_list[sam_id]);
-            sample_list[sam_id]->add(sample_list[dir_id]);
-        }
-        else
-        {
-            // a new pair is located
-            direction[pair] = sample_index[id];
-        }
+    std::vector<Sample*> sample_list;
+    if(!plink_format){
+        sample_list=kin3col(relate_name, include_samples, phenotype,
+                keep_samples, threshold, rand_gen);
+    }else{
+        sample_list=plink_format_process(relate_name, include_samples,
+                                         phenotype, keep_samples, threshold, rand_gen,
+                                         id_1_col, id_2_col, f_col);
     }
     // Update phenotype informations
-    sample_index.clear();
     std::sort(sample_list.begin(), sample_list.end(), Sample::compare_sample);
     for (auto&& sample : sample_list) {
         if (sample->removed()) continue;
